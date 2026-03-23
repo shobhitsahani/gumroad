@@ -125,13 +125,13 @@ export const extensions = (productId: string, extraExtensions: TiptapNode[] = []
 const FileUploadMenu = ({
   existingFiles,
   onEmbedMedia,
-  onUploadFile,
+  onClickComputerFiles,
   onSelectExistingFiles,
   onUploadFromDropbox,
 }: {
   existingFiles: ExistingFileEntry[];
   onEmbedMedia: () => void;
-  onUploadFile: (target: HTMLInputElement) => void;
+  onClickComputerFiles: () => void;
   onSelectExistingFiles: () => void;
   onUploadFromDropbox: () => void;
 }) => (
@@ -143,13 +143,10 @@ const FileUploadMenu = ({
       </MenuItem>
     </PopoverClose>
     <PopoverClose asChild>
-      <MenuItem asChild>
-        <label>
-          <input type="file" name="file" className="sr-only" multiple onChange={(e) => onUploadFile(e.target)} />
-          <Paperclip className="size-5" />
-          <span>Computer files</span>
-        </label>
-      </MenuItem>
+      <div role="menuitem" onClick={onClickComputerFiles}>
+        <Paperclip className="size-5" />
+        <span>Computer files</span>
+      </div>
     </PopoverClose>
     {existingFiles.length > 0 ? (
       <PopoverClose asChild>
@@ -282,6 +279,7 @@ const ContentTabContent = ({ selectedVariantId }: { selectedVariantId: string | 
     updateProduct({ files: [...product.files, ...fileEntries] });
     onSelectFiles(fileEntries.map((file) => file.id));
   };
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const uploadFileInput = (input: HTMLInputElement) => {
     if (!input.files?.length) return;
     uploadFiles([...input.files]);
@@ -566,6 +564,14 @@ const ContentTabContent = ({ selectedVariantId }: { selectedVariantId: string | 
 
   return (
     <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        name="file"
+        className="sr-only"
+        multiple
+        onChange={(e) => uploadFileInput(e.target)}
+      />
       <div className="h-screen sm:h-full md:flex md:flex-col">
         {editor ? (
           <RichTextEditorToolbar
@@ -580,7 +586,7 @@ const ContentTabContent = ({ selectedVariantId }: { selectedVariantId: string | 
                   <FileUploadMenu
                     existingFiles={existingFiles}
                     onEmbedMedia={() => setShowEmbedModal(true)}
-                    onUploadFile={uploadFileInput}
+                    onClickComputerFiles={() => fileInputRef.current?.click()}
                     onSelectExistingFiles={() => {
                       setSelectingExistingFiles({ selected: [], query: "", isLoading: true });
                       void fetchLatestExistingFiles();
@@ -972,7 +978,7 @@ const ContentTabContent = ({ selectedVariantId }: { selectedVariantId: string | 
                         <FileUploadMenu
                           existingFiles={existingFiles}
                           onEmbedMedia={() => setShowEmbedModal(true)}
-                          onUploadFile={uploadFileInput}
+                          onClickComputerFiles={() => fileInputRef.current?.click()}
                           onSelectExistingFiles={() => {
                             setSelectingExistingFiles({ selected: [], query: "", isLoading: true });
                             void fetchLatestExistingFiles();
