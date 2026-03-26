@@ -132,13 +132,14 @@ export default function SubscriptionsManage() {
       option.id === subscription.option_id
         ? {
             ...option,
-            status: hasPriceChanged
-              ? `Your current plan is ${formatPriceCentsWithCurrencySymbol(
-                  product.currency_code,
-                  Math.round(subscription.price / subscription.quantity),
-                  { symbolFormat: "long" },
-                )} ${recurrenceLabels[subscription.recurrence]}, based on previous pricing. This price will remain the same when updating your payment method.`
-              : undefined,
+            status:
+              hasPriceChanged && !restartable
+                ? `Your current plan is ${formatPriceCentsWithCurrencySymbol(
+                    product.currency_code,
+                    Math.round(subscription.price / subscription.quantity),
+                    { symbolFormat: "long" },
+                  )} ${recurrenceLabels[subscription.recurrence]}, based on previous pricing. This price will remain the same when updating your payment method.`
+                : undefined,
           }
         : option,
     ),
@@ -160,7 +161,7 @@ export default function SubscriptionsManage() {
   const isQuantityChanged = selection.quantity !== subscription.quantity;
   const isRecurrenceChanged = selection.recurrence !== subscription.recurrence;
   const noChangesToNonPriceOptions =
-    selection.optionId === subscription.option_id && !isRecurrenceChanged && !isQuantityChanged;
+    selection.optionId === subscription.option_id && !isRecurrenceChanged && !isQuantityChanged && !restartable;
 
   let warning = null;
   if (selection.optionId === subscription.option_id && hasPriceChanged) {
@@ -171,6 +172,8 @@ export default function SubscriptionsManage() {
       warning = `Changing the number of seats will update your subscription to the current price of ${price} per seat.`;
     } else if (isRecurrenceChanged) {
       warning = `Changing the billing frequency will update your subscription to the current price of ${price} per seat.`;
+    } else if (restartable) {
+      warning = `Restarting will update your subscription to the current price of ${price} per seat.`;
     }
   }
 

@@ -102,7 +102,9 @@ class Subscription::UpdaterService
           params[:offer_code].present?
         end
 
-        if !same_plan_and_price? || (is_resubscribing && discount_changed)
+        restart_price_changed = is_resubscribing && price_changed?
+
+        if !same_plan_and_price? || (is_resubscribing && (discount_changed || restart_price_changed))
           self.new_purchase = subscription.update_current_plan!(
             new_variants: variants,
             new_price: price,
@@ -114,7 +116,7 @@ class Subscription::UpdaterService
           subscription.reload
         end
 
-        if !same_plan_and_price? || overdue_for_charge
+        if !same_plan_and_price? || overdue_for_charge || restart_price_changed
           # Validate that prices matches what the user was shown for prorated upgrade
           # price and ongoing subscription price. Skip this step if the plan is not
           # changing.
@@ -145,7 +147,7 @@ class Subscription::UpdaterService
         # Restart subscription if necessary
         subscription.resubscribe! if is_resubscribing
 
-        if (same_plan_and_price? || subscription.in_free_trial?) && !overdue_for_charge
+        if (same_plan_and_price? || subscription.in_free_trial?) && !overdue_for_charge && !restart_price_changed
           send_subscription_updated_api_notification if apply_plan_change_immediately?
 
           # return if not changing tier or price (and the user isn't resubscribing
@@ -162,7 +164,7 @@ class Subscription::UpdaterService
           end
 
           # Charge user if necessary
-          if should_charge_user?
+          if restart_price_changed || should_charge_user?
             result = charge_user!
           else
             result = { success: true, success_message: }
@@ -365,7 +367,7 @@ class Subscription::UpdaterService
     end
 
     def amount_owed
-      return new_price_cents if overdue_for_charge || new_plan_is_free?
+      return new_price_cents if is_resubscribing || overdue_for_charge || new_plan_is_free?
       return 0 if subscription.in_free_trial? || !upgrade?
 
       [new_price_cents - prorated_discount_price_cents, min_price_for(product.price_currency_type)].max
@@ -377,6 +379,14 @@ class Subscription::UpdaterService
 
     def upgrade?
       !(downgrade? || same_plan_and_price?)
+    end
+
+
+    def price_changed?
+      return false if pwyw?
+      tier_price = subscription.send(:tier_price)
+      return false unless tier_price.present?
+      subscription.current_subscription_price_cents / original_purchase.quantity != tier_price.price_cents
     end
 
     def same_plan_and_price?
